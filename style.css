@@ -93,19 +93,20 @@ button, .icon-btn {
     background: none;
     border: 1px solid transparent;
     color: var(--text-color);
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 35px;
-    height: 35px;
-    font-size: 18px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
     transition: background 0.2s;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-button:hover, .icon-btn:hover { background-color: rgba(0,0,0,0.1); } /* 指定どおり維持 */
+button:hover, .icon-btn:hover { background-color: rgba(0,0,0,0.1); }
 
 button.active-mode, button.active {
     background-color: var(--accent-color);
@@ -115,13 +116,14 @@ button.active-mode, button.active {
 
 /* label.icon-btn もボタン扱い */
 label.icon-btn {
-    width: 35px;
-    height: 35px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* DLボタン */
@@ -139,14 +141,14 @@ body.editing #download-btn { display: flex; }
 
 /* ==========================================================================
    ★Search Drawer (Header)
-   - ボタン位置固定（search-wrap は 35px 幅で固定）
+   - ボタン位置固定（search-wrap は 44px 幅で固定）
    - クリック時、ボタン左側から枠が伸びる（search-bar の width を 0→可変へ）
    ========================================================================== */
 .search-wrap {
     position: relative;
-    width: 35px;        /* ★ボタン幅固定 */
-    height: 35px;
-    flex: 0 0 35px;     /* ★レイアウトを絶対に崩さない */
+    width: 44px;        /* ★ボタン幅固定 */
+    height: 44px;
+    flex: 0 0 44px;     /* ★レイアウトを絶対に崩さない */
 }
 
 .search-wrap > #search-toggle-btn {
@@ -157,9 +159,9 @@ body.editing #download-btn { display: flex; }
 /* 枠が伸びる本体 */
 #search-bar.search-bar {
     position: absolute;
-    right: 35px;        /* ★ボタンの左側から開始 */
+    right: 44px;        /* ★ボタンの左側から開始 */
     top: 0;
-    height: 35px;
+    height: 44px;
 
     width: 0;           /* ★ここが伸びる */
     padding: 0;         /* ★閉じてる間は0 */
@@ -171,7 +173,7 @@ body.editing #download-btn { display: flex; }
 
     background: var(--panel-bg);
     border: 1px solid transparent; /* ★閉じてる時は枠なし */
-    border-radius: 10px;
+    border-radius: 12px;
 
     box-shadow: 0 8px 20px rgba(0,0,0,0.18);
     transition: width 220ms ease, padding 220ms ease, border-color 220ms ease;
@@ -180,11 +182,11 @@ body.editing #download-btn { display: flex; }
     pointer-events: none; /* ★閉じてる時にクリック貫通 */
 }
 
-/* 開いたとき：枠が左へ伸びる */
+/* 開いた時：枠が左へ伸びる */
 #search-bar.search-bar.active {
     width: var(--search-drawer-width);
     padding: 0 10px;
-    border-color: var(--header-border); /* ★枠が出る＝伸びる */
+    border-color: var(--header-border); /* ★枠が出る！伸びる */
     pointer-events: auto;
 }
 
