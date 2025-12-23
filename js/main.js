@@ -43,7 +43,10 @@ const App = {
         D.fileInput.addEventListener('change', (e) => FileOps.loadFile(e.target.files[0]));
         D.hamburgerBtn.addEventListener('click', UI.toggleSidebar);
         D.sidebarOverlay.addEventListener('click', UI.closeSidebarMobile);
-        D.settingsBtn.addEventListener('click', UI.toggleSettingsPanel);
+        D.settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            UI.toggleSettingsPanel(e);
+        });
         D.downloadBtn.addEventListener('click', () => Editor.downloadFile());
         document.addEventListener('click', (e) => {
             if (!D.settingsPanel.contains(e.target) && e.target !== D.settingsBtn) {
