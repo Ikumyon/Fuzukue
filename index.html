@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuzukue - Editor Enhanced</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <button id="hamburger-btn" aria-label="目次を開く" title="目次">
+                <i class="fa-solid fa-list-ul"></i>
+            </button>
+            <div id="title-display">ファイル未選択</div>
+        </div>
+
+        <div class="header-right">
+            <button id="download-btn" aria-label="ダウンロード" title="編集内容を保存してダウンロード">
+                <i class="fa-solid fa-download"></i><span>保存</span>
+            </button>
+            <button id="edit-toggle-btn" aria-label="編集モード" title="編集モード切替">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            
+            <button id="jump-line-btn" aria-label="行へ移動" title="行番号を指定して移動">
+                <i class="fa-solid fa-arrow-down-1-9"></i>
+            </button>
+
+            <button id="search-toggle-btn" aria-label="検索" title="本文検索">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+
+            <label for="file-input" class="icon-btn" title="ファイルを開く">
+                <i class="fa-regular fa-folder-open"></i>
+            </label>
+            <input type="file" id="file-input" accept=".txt" style="display: none;">
+
+            <button id="settings-btn" aria-label="設定" title="表示設定">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <div id="settings-panel" class="hidden">
+        <div class="settings-group">
+            <h4>表示モード</h4>
+            <div class="button-row">
+                <button id="mode-toggle">縦書き</button>
+                <button id="theme-toggle">ダークモード</button>
+            </div>
+        </div>
+        <div class="settings-group">
+            <h4>文字設定</h4>
+            <label>
+                <span>フォント</span>
+                <select id="font-select">
+                    <option value="mincho">明朝体 (標準)</option>
+                    <option value="gothic">ゴシック体</option>
+                    <option value="maru">丸ゴシック</option>
+                </select>
+            </label>
+            <label><span>サイズ</span><input type="range" id="size-range" min="10" max="40" value="18"></label>
+            <label><span>字間</span><input type="range" id="spacing-range" min="0" max="0.5" step="0.01" value="0.05"></label>
+            <label><span>行間</span><input type="range" id="line-range" min="1.0" max="3.0" step="0.1" value="1.8"></label>
+        </div>
+    </div>
+
+    <div id="app-body">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h3>目次</h3>
+                <div class="sidebar-actions">
+                    <span id="toc-count">0件</span>
+                    <button id="toc-settings-btn" title="抽出ルール設定">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                </div>
+            </div>
+            <ul id="toc-list">
+            </ul>
+        </aside>
+
+        <div id="sidebar-overlay"></div>
+
+        <main id="reader-container">
+            <div id="content-area">
+            </div>
+            <textarea id="edit-textarea" spellcheck="false"></textarea>
+        </main>
+
+        <div id="drop-overlay">
+            <div class="drop-message">
+                <i class="fa-solid fa-file-import"></i><br>
+                ここにファイルをドロップ
+            </div>
+        </div>
+
+        <div id="toc-settings-modal" class="hidden modal-wrapper">
+            <div class="modal-box wide-modal">
+                <h3>見出し抽出ルール (正規表現)</h3>
+                <p>以下の条件に一致する行を目次として抽出します。</p>
+                <div id="rule-list-container"></div>
+                <div class="add-rule-area">
+                    <button id="add-rule-btn" class="outline-btn">
+                        <i class="fa-solid fa-plus"></i> 条件を追加
+                    </button>
+                </div>
+                <hr class="modal-divider">
+                <div class="toc-rule-input">
+                    <label>除外するキーワード (正規表現)</label>
+                    <input type="text" id="rule-exclude" placeholder="例: 注意|転載|あとがき">
+                </div>
+                <div class="modal-actions">
+                    <button id="toc-settings-close" class="secondary">キャンセル</button>
+                    <button id="toc-settings-save">保存して再抽出</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="jump-line-modal" class="hidden modal-wrapper">
+            <div class="modal-box small-modal">
+                <h3>行へ移動</h3>
+                <div class="jump-input-area">
+                    <input type="number" id="jump-line-input" min="1" placeholder="行番号を入力">
+                    <span id="max-line-display">/ 0行</span>
+                </div>
+                <div class="modal-actions">
+                    <button id="jump-line-close" class="secondary">キャンセル</button>
+                    <button id="jump-line-exec">移動</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="search-bar" class="hidden">
+        <div class="search-input-group">
+            <input type="text" id="search-input" placeholder="検索 (正規表現可)">
+            <button id="regex-toggle" title="正規表現モード切替 (OFF)" class="toggle-btn">.*</button>
+        </div>
+        <div class="search-actions">
+            <span id="search-count">0/0</span>
+            <button id="search-prev" title="前へ"><i class="fa-solid fa-chevron-left"></i></button>
+            <button id="search-next" title="次へ"><i class="fa-solid fa-chevron-right"></i></button>
+            <button id="search-close" title="閉じる"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <div id="status-bar" class="hidden">
+        <span id="status-line-count"></span>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
