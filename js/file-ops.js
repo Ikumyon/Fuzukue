@@ -6,8 +6,8 @@ import { Search } from './search.js';
 export const FileOps = {
   loadFile(file) {
     if (!file) return;
-    if (!file.type.match('text.*') && !file.name.endsWith('.txt')) {
-      alert('テキストファイルを選択してください。');
+    if (!file.type.match('text.*') && !file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
+      alert('テキストファイル(.txt, .md)を選択してください。');
       return;
     }
 
@@ -28,7 +28,6 @@ export const FileOps = {
 
       Search.close();
 
-      // ★循環依存を避けつつ、編集中なら編集モード解除
       if (State.isEditMode) {
         D.editToggleBtn.click();
       }
@@ -45,40 +44,130 @@ export const FileOps = {
     const lines = text.split(/\r\n|\n/);
     const fragment = document.createDocumentFragment();
 
-    lines.forEach((line, index) => {
-      const p = document.createElement('p');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
+      const lineNum = i + 1;
 
-      p.dataset.line = index + 1;
-      p.id = `line-${index + 1}`;
+      // --- Markdown Table Logic ---
+      if (trimmed.startsWith('|') && i + 1 < lines.length) {
+        const nextLine = lines[i + 1].trim();
+        if (nextLine.startsWith('|') && nextLine.includes('-')) {
+          const tableResult = this.parseTable(lines, i);
+          if (tableResult) {
+            fragment.appendChild(tableResult.element);
+            i = tableResult.endIndex;
+            continue;
+          }
+        }
+      }
 
+      // --- Normal Line or Heading ---
+      let el;
+      const mdHeadingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+      
+      if (mdHeadingMatch) {
+        const level = mdHeadingMatch[1].length;
+        const content = mdHeadingMatch[2];
+        el = document.createElement(`h${level}`);
+        el.textContent = content;
+        // <br>タグの復元: textContentでエスケープされた &lt;br&gt; を <br> に戻す
+        el.innerHTML = el.innerHTML.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+      } else {
+        el = document.createElement('p');
+        el.textContent = line;
+        // <br>タグの復元
+        el.innerHTML = el.innerHTML.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+
+        if (line === '') el.innerHTML = '&nbsp;';
+      }
+
+      el.dataset.line = lineNum;
+      el.id = `line-${lineNum}`;
+
+      // --- 目次判定 ---
       if (this.isHeading(trimmed)) {
-        p.classList.add('line-heading');
+        el.classList.add('line-heading');
 
         let previewText = "";
-        for (let k = index + 1; k < lines.length; k++) {
-          const nextLine = lines[k].trim();
-          if (nextLine.length > 0) {
-            previewText = nextLine;
+        for (let k = i + 1; k < lines.length; k++) {
+          const nextLineStr = lines[k].trim();
+          if (nextLineStr.length > 0) {
+            previewText = nextLineStr;
             break;
           }
         }
 
         State.currentTocMap.push({
-          id: p.id,
-          text: trimmed,
+          id: el.id,
+          text: trimmed.replace(/^(#+)\s+/, ''),
           preview: previewText,
-          element: p
+          element: el
         });
       }
 
-      p.textContent = line;
-      if (line === '') p.innerHTML = '&nbsp;';
-      fragment.appendChild(p);
-    });
+      fragment.appendChild(el);
+    }
 
     D.contentArea.appendChild(fragment);
     this.renderToc();
+  },
+
+  parseTable(lines, startIndex) {
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+    
+    // Header
+    const headerLine = lines[startIndex].trim();
+    const headerCols = headerLine.split('|').filter(s => s !== '');
+    const trHead = document.createElement('tr');
+    
+    headerCols.forEach(colText => {
+      const th = document.createElement('th');
+      th.textContent = colText.trim();
+      // テーブルヘッダー内の <br> 復元
+      th.innerHTML = th.innerHTML.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    let currentIndex = startIndex + 2;
+
+    while (currentIndex < lines.length) {
+      const line = lines[currentIndex].trim();
+      if (!line.startsWith('|')) break;
+
+      const tr = document.createElement('tr');
+      const cols = line.split('|');
+      const validCols = [];
+      for(let j=0; j<cols.length; j++) {
+        if (j === 0 && cols[j] === '') continue;
+        if (j === cols.length - 1 && cols[j] === '') continue;
+        validCols.push(cols[j]);
+      }
+
+      validCols.forEach(colText => {
+        const td = document.createElement('td');
+        td.textContent = colText.trim();
+        // テーブルセル内の <br> 復元
+        td.innerHTML = td.innerHTML.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+
+      currentIndex++;
+    }
+
+    table.appendChild(tbody);
+    table.id = `line-${startIndex + 1}`;
+    table.dataset.line = startIndex + 1;
+
+    return {
+      element: table,
+      endIndex: currentIndex - 1
+    };
   },
 
   isHeading(str) {
