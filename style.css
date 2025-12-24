@@ -44,7 +44,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     font-family: sans-serif;
-    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -244,7 +244,7 @@ body.editing #download-btn { display: flex; }
     border-right: 1px solid var(--header-border);
     display: flex;
     flex-direction: column;
-    position: absolute;
+    position: fixed;
     top: 0;
     bottom: 0;
     left: -280px;
@@ -286,6 +286,12 @@ body.editing #download-btn { display: flex; }
     margin: 0;
     flex-grow: 1;
     overflow: auto; /* スクロールはここで制御 */
+
+    /* ★追加: スクロールの慣性を有効化（iOSで滑らかになる） */
+    -webkit-overflow-scrolling: touch; 
+    
+    /* ★追加: リストの最後に十分な余白を持たせる */
+    padding-bottom: 80px;
     
     /* すべてのliを同じ幅（最大のliの幅）にするためのGrid設定 */
     display: grid;
