@@ -40,14 +40,33 @@ export const Search = {
       return;
     }
 
-    const paragraphs = D.contentArea.querySelectorAll('p');
-    paragraphs.forEach(p => {
-      const text = p.textContent;
-      if (text.match(regex)) {
-        const newHTML = text.replace(regex, m => `<span class="search-match">${m}</span>`);
-        p.innerHTML = newHTML;
+    const highlightTextNodes = (node) => {
+      if (node.nodeType === 3) {
+        let match;
+        while ((match = regex.exec(node.nodeValue)) !== null) {
+          // 空文字マッチによる無限ループ防止
+          if (match[0].length === 0) {
+            regex.lastIndex++;
+            continue;
+          }
+
+          const span = document.createElement('span');
+          span.className = 'search-match';
+          span.textContent = match[0];
+          
+          const after = node.splitText(match.index);
+          after.nodeValue = after.nodeValue.substring(match[0].length);
+          node.parentNode.insertBefore(span, after);
+          
+          regex.lastIndex = 0;
+          node = after;
+        }
+      } else if (node.nodeType === 1 && node.nodeName !== 'SCRIPT' && !node.classList.contains('search-match')) {
+        Array.from(node.childNodes).forEach(child => highlightTextNodes(child));
       }
-    });
+    };
+
+    highlightTextNodes(D.contentArea);
 
     const spans = D.contentArea.querySelectorAll('span.search-match');
     State.searchMatches = Array.from(spans);

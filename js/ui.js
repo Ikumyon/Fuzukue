@@ -34,5 +34,46 @@ export const UI = {
     }
     D.root.style.setProperty('--font-family', fontFamily);
     if (D.fontSelect) D.fontSelect.value = fontKey;
+  },
+
+  applyVerticalMode(isVertical) {
+    D.readerContainer.classList.toggle('vertical', isVertical);
+    if (D.modeToggle) {
+      D.modeToggle.textContent = isVertical ? '横書きにする' : '縦書きにする';
+    }
+  },
+
+  applyDarkMode(isDarkMode) {
+    document.body.classList.toggle('dark-mode', isDarkMode);
+  },
+
+  showLoadingOverlay(message = "処理中...") {
+    this.hideLoadingOverlay();
+    const overlay = document.createElement('div');
+    overlay.id = 'ai-loading-overlay';
+    overlay.className = 'modal-wrapper';
+    overlay.style.zIndex = '3000';
+    overlay.innerHTML = `
+      <div class="modal-box ai-progress-box" style="width: 320px; padding: 30px; text-align: center;">
+        <i class="fa-solid fa-robot fa-bounce" style="font-size: 2.5rem; margin-bottom: 20px; color: var(--accent-color);"></i>
+        <div id="ai-progress-msg" style="font-weight: bold; margin-bottom: 15px;">${message}</div>
+        <div class="ai-progress-bar-container" style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 10px;">
+          <div id="ai-progress-bar" style="width: 0%; height: 100%; background: var(--accent-color); transition: width 0.3s ease;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  },
+ 
+  updateLoadingProgress(percent, message) {
+    const bar = document.getElementById('ai-progress-bar');
+    const msg = document.getElementById('ai-progress-msg');
+    if (bar) bar.style.width = percent + '%';
+    if (msg && message) msg.textContent = message;
+  },
+ 
+  hideLoadingOverlay() {
+    const overlay = document.getElementById('ai-loading-overlay');
+    if (overlay) overlay.remove();
   }
 };

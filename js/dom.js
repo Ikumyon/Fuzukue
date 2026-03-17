@@ -27,15 +27,19 @@ export const D = {
   dropOverlay: document.getElementById('drop-overlay'),
 
   // Panels & Modals
-  settingsPanel: document.getElementById('settings-panel'),
-  tocSettingsModal: document.getElementById('toc-settings-modal'),
+  settingsModal: document.getElementById('settings-modal'),
+  settingsCloseTop: document.getElementById('settings-close-top'),
+  settingsClose: document.getElementById('settings-close'),
+  settingsSave: document.getElementById('settings-save'),
+  tabBtns: document.querySelectorAll('.tab-btn'),
+  tabContents: document.querySelectorAll('.tab-content'),
   jumpLineModal: document.getElementById('jump-line-modal'),
   searchBar: document.getElementById('search-bar'),
   searchWrap: document.getElementById('search-wrap'),
 
   // Inputs inside panels
-  modeToggle: document.getElementById('mode-toggle'),
-  themeToggle: document.getElementById('theme-toggle'),
+  writingModeSegment: document.getElementById('writing-mode-segment'),
+  themeSegment: document.getElementById('theme-segment'),
   fontSelect: document.getElementById('font-select'),
   sizeRange: document.getElementById('size-range'),
   spacingRange: document.getElementById('spacing-range'),
@@ -49,12 +53,16 @@ export const D = {
   searchClose: document.getElementById('search-close'),
   searchCount: document.getElementById('search-count'),
 
-  // TOC Settings controls
+  // TOC Settings controls (now in tabs)
   ruleListContainer: document.getElementById('rule-list-container'),
   addRuleBtn: document.getElementById('add-rule-btn'),
+  tocResetBtn: document.getElementById('toc-reset-btn'),
   ruleExclude: document.getElementById('rule-exclude'),
-  tocSettingsSave: document.getElementById('toc-settings-save'),
-  tocSettingsClose: document.getElementById('toc-settings-close'),
+
+  // AI Settings controls
+  addAiModelBtn: document.getElementById('add-ai-model-btn'),
+  aiModelListContainer: document.getElementById('ai-model-list-container'),
+  aiBtn: document.getElementById('ai-btn'),
 
   // Jump Line controls
   jumpLineInput: document.getElementById('jump-line-input'),

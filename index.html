@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <meta name="robots" content="noindex, nofollow, noarchive">
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 </head>
 
 <body>
@@ -61,10 +62,14 @@
       <button id="edit-toggle-btn" class="icon-btn" title="編集">
         <i class="fa-solid fa-pen-to-square"></i>
       </button>
+ 
+      <button id="ai-btn" class="icon-btn" title="AI別視点生成">
+        <i class="fa-solid fa-robot"></i>
+      </button>
 
       <label class="icon-btn" title="開く">
         <i class="fa-solid fa-folder-open"></i>
-        <input id="file-input" type="file" accept=".txt,text/plain" hidden />
+        <input id="file-input" type="file" accept=".txt,.md,text/plain" hidden />
       </label>
 
       <button id="settings-btn" class="icon-btn" title="設定">
@@ -97,65 +102,107 @@
 
   <div id="sidebar-overlay"></div>
 
-  <!-- Settings Panel -->
-  <div id="settings-panel" class="hidden">
-    <div class="settings-group">
-      <h4>表示</h4>
-      <div class="button-row">
-        <button id="mode-toggle" type="button">縦書きにする</button>
-        <button id="theme-toggle" type="button">ダーク</button>
+  <!-- Unified Settings Modal -->
+  <div id="settings-modal" class="modal-wrapper hidden">
+    <div class="modal-box giant-modal">
+      <div class="modal-header">
+        <h3>設定</h3>
+        <button id="settings-close-top" class="icon-btn tiny"><i class="fa-solid fa-xmark"></i></button>
       </div>
-
-      <label>
-        フォント
-        <select id="font-select">
-          <option value="mincho">明朝体</option>
-          <option value="gothic">ゴシック体</option>
-          <option value="maru">丸ゴシック体</option>
-        </select>
-      </label>
-
-      <label>
-        文字サイズ
-        <input id="size-range" type="range" min="12" max="36" value="18" />
-      </label>
-
-      <label>
-        字間
-        <input id="spacing-range" type="range" min="0" max="0.2" step="0.01" value="0.05" />
-      </label>
-
-      <label>
-        行間
-        <input id="line-height-range" type="range" min="1.2" max="2.6" step="0.1" value="1.8" />
-      </label>
-    </div>
-  </div>
-
-  <!-- TOC Settings Modal -->
-  <div id="toc-settings-modal" class="modal-wrapper hidden">
-    <div class="modal-box wide-modal">
-      <h3>目次抽出ルール</h3>
-      <p>正規表現で見出し行を判定します。</p>
-
-      <div class="add-rule-area">
-        <button id="add-rule-btn" class="outline-btn" type="button">
-          <i class="fa-solid fa-plus"></i> ルール追加
-        </button>
+ 
+      <div class="settings-tabs">
+        <button class="tab-btn active" data-tab="tab-display">表示</button>
+        <button class="tab-btn" data-tab="tab-toc">目次</button>
+        <button class="tab-btn" data-tab="tab-ai">AI</button>
       </div>
-
-      <hr class="modal-divider" />
-
-      <div id="rule-list-container"></div>
-
-      <div class="toc-rule-input">
-        <label for="rule-exclude">除外パターン（任意）</label>
-        <input id="rule-exclude" type="text" placeholder="例: ^(※|注)" />
+ 
+      <div class="tab-content" id="tab-display">
+        <div class="settings-group">
+          <h4>表示設定</h4>
+          <div class="setting-item">
+            <span class="setting-label">方向</span>
+            <div class="segment-control" id="writing-mode-segment">
+              <input type="radio" name="writing-mode" id="mode-horizontal" value="horizontal">
+              <label for="mode-horizontal">横書き</label>
+              <input type="radio" name="writing-mode" id="mode-vertical" value="vertical">
+              <label for="mode-vertical">縦書き</label>
+            </div>
+          </div>
+ 
+          <div class="setting-item">
+            <span class="setting-label">テーマ</span>
+            <div class="segment-control" id="theme-segment">
+              <input type="radio" name="theme" id="theme-light" value="light">
+              <label for="theme-light">ライト</label>
+              <input type="radio" name="theme" id="theme-dark" value="dark">
+              <label for="theme-dark">ダーク</label>
+            </div>
+          </div>
+ 
+          <label>
+            フォント
+            <select id="font-select">
+              <option value="mincho">明朝体</option>
+              <option value="gothic">ゴシック体</option>
+              <option value="maru">丸ゴシック体</option>
+            </select>
+          </label>
+ 
+          <label>
+            文字サイズ
+            <input id="size-range" type="range" min="12" max="36" value="18" />
+          </label>
+ 
+          <label>
+            字間
+            <input id="spacing-range" type="range" min="0" max="0.2" step="0.01" value="0.05" />
+          </label>
+ 
+          <label>
+            行間
+            <input id="line-height-range" type="range" min="1.2" max="2.6" step="0.1" value="1.8" />
+          </label>
+        </div>
       </div>
-
+ 
+      <div class="tab-content hidden" id="tab-toc">
+        <div class="settings-group">
+          <h4>目次抽出ルール</h4>
+          <p>正規表現で見出し行を判定します。</p>
+          <div class="add-rule-area">
+            <button id="add-rule-btn" class="outline-btn" type="button">
+              <i class="fa-solid fa-plus"></i> ルール追加
+            </button>
+            <button id="toc-reset-btn" class="outline-btn secondary-outline" type="button" style="margin-top: 10px;">
+              <i class="fa-solid fa-rotate-left"></i> 初期値に戻す
+            </button>
+          </div>
+          <hr class="modal-divider" />
+          <div id="rule-list-container"></div>
+          <div class="toc-rule-input">
+            <label for="rule-exclude">除外パターン（任意）</label>
+            <input id="rule-exclude" type="text" placeholder="例: ^(※|注)" />
+          </div>
+        </div>
+      </div>
+ 
+      <div class="tab-content hidden" id="tab-ai">
+        <div class="settings-group">
+          <h4>AIモデル管理</h4>
+          <p>AIプロバイダ、モデル名、APIキーを設定します。</p>
+          <div class="add-rule-area">
+            <button id="add-ai-model-btn" class="outline-btn" type="button">
+              <i class="fa-solid fa-plus"></i> モデル設定を追加
+            </button>
+          </div>
+          <hr class="modal-divider" />
+          <div id="ai-model-list-container"></div>
+        </div>
+      </div>
+ 
       <div class="modal-actions">
-        <button id="toc-settings-close" class="secondary" type="button">閉じる</button>
-        <button id="toc-settings-save" type="button">保存</button>
+        <button id="settings-save" type="button">保存</button>
+        <button id="settings-close" class="secondary" type="button">閉じる</button>
       </div>
     </div>
   </div>

@@ -4,12 +4,13 @@ import { UI } from './ui.js';
 import { FileOps } from './file-ops.js';
 import { Editor } from './editor.js';
 import { Search } from './search.js';
-import { Settings } from './settings.js';
+import { Settings, saveSettingsToStorage } from './settings.js';
 
 const App = {
   init() {
     this.loadSettings();
     this.bindEvents();
+    Settings.init();
   },
 
   loadSettings() {
@@ -21,6 +22,8 @@ const App = {
       } catch (e) { console.error(e); }
     }
     UI.applyFont(State.settings.font);
+    UI.applyVerticalMode(State.settings.isVertical);
+    UI.applyDarkMode(State.settings.isDarkMode);
   },
 
   bindEvents() {
@@ -50,17 +53,17 @@ const App = {
 
     D.settingsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      UI.toggleSettingsPanel(e);
+      Settings.openModal('tab-display');
+    });
+
+    D.aiBtn.addEventListener('click', () => {
+      Editor.toggleAiSelectionMode();
     });
 
     D.downloadBtn.addEventListener('click', () => Editor.downloadFile());
 
-    // ★クリック外し：設定パネル & 検索ドロワー
+    // ★クリック外し：検索ドロワー
     document.addEventListener('click', (e) => {
-      // settings
-      if (!D.settingsPanel.contains(e.target) && e.target !== D.settingsBtn) {
-        D.settingsPanel.classList.add('hidden');
-      }
       // search drawer
       if (D.searchBar.classList.contains('active')) {
         const inSearch = D.searchWrap.contains(e.target);
@@ -100,31 +103,41 @@ const App = {
       else Search.navigate(-1);
     });
 
-    // Settings Panel
-    D.modeToggle.addEventListener('click', () => {
-      const isVertical = D.readerContainer.classList.toggle('vertical');
-      D.modeToggle.textContent = isVertical ? '横書きにする' : '縦書きにする';
+    // Settings Modal Content
+    D.writingModeSegment.addEventListener('change', (e) => {
+      State.settings.isVertical = e.target.value === 'vertical';
+      UI.applyVerticalMode(State.settings.isVertical);
+      saveSettingsToStorage();
     });
 
-    D.themeToggle.addEventListener('click', () => document.body.classList.toggle('dark-mode'));
+    D.themeSegment.addEventListener('change', (e) => {
+      State.settings.isDarkMode = e.target.value === 'dark';
+      UI.applyDarkMode(State.settings.isDarkMode);
+      saveSettingsToStorage();
+    });
 
     D.fontSelect.addEventListener('change', (e) => {
       UI.applyFont(e.target.value);
       State.settings.font = e.target.value;
-      localStorage.setItem('webReaderSettings', JSON.stringify(State.settings));
+      saveSettingsToStorage();
     });
 
     D.sizeRange.addEventListener('input', (e) => D.root.style.setProperty('--font-size', e.target.value + 'px'));
     D.spacingRange.addEventListener('input', (e) => D.root.style.setProperty('--letter-spacing', e.target.value + 'em'));
     D.lineRange.addEventListener('input', (e) => D.root.style.setProperty('--line-height', e.target.value));
 
-    // TOC Settings
-    D.tocSettingsBtn.addEventListener('click', () => {
-      Settings.renderUI();
-      D.tocSettingsModal.classList.remove('hidden');
+    // Modal Actions
+    D.settingsClose.addEventListener('click', () => Settings.closeModal());
+    D.settingsCloseTop.addEventListener('click', () => Settings.closeModal());
+    D.settingsSave.addEventListener('click', () => {
+      Settings.saveFromUI();
+      Settings.closeModal();
     });
 
-    D.tocSettingsClose.addEventListener('click', () => D.tocSettingsModal.classList.add('hidden'));
+    // TOC Tab specific
+    D.tocSettingsBtn.addEventListener('click', () => {
+      Settings.openModal('tab-toc');
+    });
 
     D.addRuleBtn.addEventListener('click', () => {
       const row = Settings.createRuleRow("", true);
@@ -132,18 +145,23 @@ const App = {
       row.querySelector('input[type="text"]').focus();
     });
 
-    D.tocSettingsSave.addEventListener('click', () => {
-      Settings.saveFromUI();
-      D.tocSettingsModal.classList.add('hidden');
+    D.tocResetBtn.addEventListener('click', () => {
+      Settings.resetDefaults();
+    });
+
+    // AI Tab specific
+    D.addAiModelBtn.addEventListener('click', () => {
+      const row = Settings.createAiModelRow({ active: false });
+      D.aiModelListContainer.appendChild(row);
+      row.querySelector('input[type="text"]').focus();
     });
 
     // ESC 全体：モーダル閉じる/検索閉じる
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       Search.close();
-      D.tocSettingsModal.classList.add('hidden');
+      Settings.closeModal();
       D.jumpLineModal.classList.add('hidden');
-      D.settingsPanel.classList.add('hidden');
     });
   }
 };
