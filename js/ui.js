@@ -17,12 +17,15 @@ export const UI = {
   },
 
   toggleSettingsPanel(e) {
-    e.stopPropagation();
-    D.settingsPanel.classList.toggle('hidden');
-    if (!D.settingsPanel.classList.contains('hidden')) {
-      // 設定を開いたら検索は閉じる側へ（見た目/操作の競合防止）
-      D.searchBar.classList.add('hidden');
-      D.searchBar.classList.remove('active');
+    if (e) e.stopPropagation();
+    // D.settingsPanel は D.settingsModal に修正
+    if (D.settingsModal) {
+      D.settingsModal.classList.toggle('hidden');
+      if (!D.settingsModal.classList.contains('hidden')) {
+        // 設定を開いたら検索は閉じる側へ（見た目/操作の競合防止）
+        D.searchBar.classList.add('hidden');
+        D.searchBar.classList.remove('active');
+      }
     }
   },
 

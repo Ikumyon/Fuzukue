@@ -9,10 +9,16 @@ export const Editor = {
     State.isEditMode = !State.isEditMode;
     D.body.classList.toggle('editing', State.isEditMode);
     D.editToggleBtn.classList.toggle('active-mode', State.isEditMode);
+    
+    // リボンとステータスバーの表示切り替え
+    D.ribbonContainer.classList.toggle('hidden', !State.isEditMode);
+    D.editorStatusBar.classList.toggle('hidden', !State.isEditMode);
 
     if (State.isEditMode) {
       D.editTextarea.value = State.currentTextCache;
       Search.close();
+      this.setViewMode('edit');
+      this.updateStatusBar();
       D.editTextarea.focus();
     } else {
       this.saveChanges();
@@ -23,28 +29,136 @@ export const Editor = {
     const newText = D.editTextarea.value;
     State.currentTextCache = newText;
     FileOps.renderContent(newText);
+    D.saveStatus.textContent = "保存済み";
   },
 
-  downloadFile() {
-    const content = State.currentTextCache || D.editTextarea.value;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+  // リボンUI：タブ切り替え
+  switchRibbonTab(tabId) {
+    D.ribbonTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    D.ribbonPanels.forEach(p => p.classList.toggle('active', p.id === tabId));
+  },
 
+  // 表示モード切り替え（編集 / プレビュー）
+  setViewMode(mode) {
+    const isPreview = mode === 'preview';
+    D.body.classList.toggle('preview-display', isPreview);
+    D.rbnViewEdit.classList.toggle('active', !isPreview);
+    D.rbnViewPreview.classList.toggle('active', isPreview);
+
+    if (isPreview) {
+      this.refreshPreview();
+    } else {
+      D.editTextarea.focus();
+    }
+  },
+
+  refreshPreview() {
+    const text = D.editTextarea.value;
+    FileOps.renderContent(text);
+  },
+
+  // ステータスバー更新
+  updateStatusBar() {
+    const text = D.editTextarea.value;
+    const charCount = text.length;
+    const lineCount = text.split(/\r\n|\n/).length;
+
+    D.charCount.textContent = `${charCount} 文字`;
+    D.lineCount.textContent = `${lineCount} 行`;
+    D.saveStatus.textContent = "変更あり";
+    D.saveStatus.className = "changed";
+  },
+
+  insertMarkdown(type) {
+    const textarea = D.editTextarea;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+
+    let before = "";
+    let after = "";
+    let cursorOffset = 0;
+
+    switch (type) {
+      case 'bold': before = "**"; after = "**"; break;
+      case 'italic': before = "_"; after = "_"; break;
+      case 'strike': before = "~~"; after = "~~"; break;
+      case 'h1': before = "# "; break;
+      case 'h2': before = "## "; break;
+      case 'h3': before = "### "; break;
+      case 'list': before = "- "; break;
+      case 'quote': before = "> "; break;
+      case 'link': before = "["; after = "](url)"; cursorOffset = -5; break;
+      case 'image': before = "!["; after = "](url)"; cursorOffset = -5; break;
+      case 'table': 
+        before = "\n| 列1 | 列2 |\n| --- | --- |\n|  |  |\n";
+        break;
+      case 'hr': before = "\n---\n"; break;
+      case 'ai-switch':
+        before = "\n:::switch\n@元の視点\n";
+        after = "\n\n@別の視点\n...\n:::";
+        break;
+    }
+
+    const newText = text.substring(0, start) + before + selected + after + text.substring(end);
+    textarea.value = newText;
+    State.currentTextCache = newText;
+
+    // カーソル位置の調整
+    const newPos = start + before.length + selected.length + after.length + cursorOffset;
+    textarea.focus();
+    textarea.setSelectionRange(newPos, newPos);
+    
+    this.updateStatusBar();
+    if (D.body.classList.contains('preview-display')) this.refreshPreview();
+  },
+
+  // --- ダウンロード機能 ---
+  openDownloadModal() {
     let originalName = D.titleDisplay.textContent;
     if (!originalName || originalName === '未読み込み') {
       originalName = 'document.txt';
     }
 
     const lastDot = originalName.lastIndexOf('.');
+    let base = originalName;
+    let ext = '.txt';
+
     if (lastDot !== -1) {
-      const base = originalName.substring(0, lastDot);
-      const ext = originalName.substring(lastDot);
-      a.download = `${base}_edited${ext}`;
-    } else {
-      a.download = `${originalName}_edited.txt`;
+      base = originalName.substring(0, lastDot);
+      ext = originalName.substring(lastDot);
     }
+
+    // デフォルトのファイル名を設定 (base + _edited)
+    D.downloadFilenameInput.value = `${base}_edited`;
     
+    // 拡張子の情報を反映 (もし現在のファイルが .md なら .md を選択状態にするなど)
+    if (ext === '.md') {
+      document.getElementById('ext-md').checked = true;
+    } else {
+      document.getElementById('ext-txt').checked = true;
+    }
+
+    D.downloadModal.classList.remove('hidden');
+    setTimeout(() => D.downloadFilenameInput.focus(), 0);
+  },
+
+  confirmDownload() {
+    const filename = D.downloadFilenameInput.value.trim() || 'document';
+    const ext = document.querySelector('input[name="download-ext"]:checked').value;
+    
+    this.downloadFile(filename, ext);
+    D.downloadModal.classList.add('hidden');
+  },
+
+  downloadFile(filename, ext) {
+    const content = State.currentTextCache || D.editTextarea.value;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    a.download = `${filename}${ext}`;
     a.href = url;
     a.click();
     URL.revokeObjectURL(url);
@@ -65,14 +179,13 @@ export const Editor = {
     if (maxLines > 0 && line > maxLines) line = maxLines;
 
     if (State.isEditMode) {
-      // 編集中：該当行の先頭へカーソル移動
+      if (D.body.classList.contains('preview-display')) this.setViewMode('edit');
       const lines = D.editTextarea.value.split(/\r\n|\n/);
       let pos = 0;
       for (let i = 0; i < Math.max(0, line - 1); i++) pos += lines[i].length + 1;
       D.editTextarea.focus();
       D.editTextarea.setSelectionRange(pos, pos);
     } else {
-      // 閲覧：p#line-n へスクロール
       const target = document.getElementById(`line-${line}`);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -118,7 +231,6 @@ export const Editor = {
   },
 
   handleParagraphSelection(lineNum) {
-    // すでに開始位置が選択されている状態で同じ行をクリックしたら解除
     if (State.aiSelectionRange.start === lineNum) {
       State.aiSelectionRange.start = null;
       State.aiSelectionRange.end = null;
@@ -153,7 +265,6 @@ export const Editor = {
     const bar = document.createElement('div');
     bar.id = 'ai-float-bar';
 
-    // 履歴からリスト項目を作成
     const historyList = (State.settings.aiPersonaHistory || [])
       .map(name => `
         <div class="persona-dropdown-item" data-value="${name}">
@@ -205,22 +316,18 @@ export const Editor = {
       };
 
       dropdownList.onclick = async (e) => {
-        // 削除ボタンのクリック処理
         const deleteBtn = e.target.closest('.persona-item-delete');
         if (deleteBtn) {
           e.stopPropagation();
           const item = deleteBtn.closest('.persona-dropdown-item');
           const val = item.getAttribute('data-value');
-
           State.settings.aiPersonaHistory = (State.settings.aiPersonaHistory || []).filter(h => h !== val);
-
           try {
             const { saveSettingsToStorage } = await import('./settings.js');
             saveSettingsToStorage();
           } catch (err) {
-            console.error("Failed to save settings after deletion", err);
+            console.error("Failed to save settings", err);
           }
-
           item.remove();
           if (State.settings.aiPersonaHistory.length === 0) {
             dropdownList.innerHTML = '<div class="persona-dropdown-empty">履歴がありません</div>';
@@ -228,7 +335,6 @@ export const Editor = {
           return;
         }
 
-        // 項目選択処理
         const item = e.target.closest('.persona-dropdown-item');
         if (item) {
           personaInput.value = item.getAttribute('data-value');
@@ -236,7 +342,6 @@ export const Editor = {
         }
       };
 
-      // 外側クリックで閉じる
       const closeDropdown = (e) => {
         if (!bar.contains(e.target)) {
           dropdownList.classList.add('hidden');
@@ -282,11 +387,9 @@ export const Editor = {
       return;
     }
 
-    // 正確な範囲抽出：選択された最初の要素の開始行から、最後の要素の終了行まで
     const startLine = Math.min(State.aiSelectionRange.start, State.aiSelectionRange.end);
     const endLine = Math.max(State.aiSelectionRange.start, State.aiSelectionRange.end);
 
-    // 実際に選択された要素を取得し、その中での最小開始行と最大終了行を特定する
     const selectedElements = Array.from(D.contentArea.querySelectorAll('[data-line]'))
       .filter(el => {
         const ln = parseInt(el.getAttribute('data-line'), 10);
@@ -301,7 +404,6 @@ export const Editor = {
     const finalStartLine = Math.min(...selectedElements.map(el => parseInt(el.getAttribute('data-line'), 10)));
     const finalEndLine = Math.max(...selectedElements.map(el => parseInt(el.getAttribute('data-line-end'), 10)));
 
-    // Check for switch blocks inside range
     if (selectedElements.some(el => el.closest('.switch-block'))) {
       alert("選択範囲内に既に switch ブロックが含まれています。");
       return;
@@ -310,13 +412,10 @@ export const Editor = {
     const lines = (State.currentTextCache || "").split(/\r\n|\n/);
     const selectedText = lines.slice(finalStartLine - 1, finalEndLine).join('\n');
 
-    // 履歴の更新
     if (!State.settings.aiPersonaHistory) State.settings.aiPersonaHistory = [];
     if (!State.settings.aiPersonaHistory.includes(persona)) {
       State.settings.aiPersonaHistory.unshift(persona);
       if (State.settings.aiPersonaHistory.length > 10) State.settings.aiPersonaHistory.pop();
-
-      // 設定を永続化
       try {
         const { saveSettingsToStorage } = await import('./settings.js');
         saveSettingsToStorage();
@@ -325,10 +424,8 @@ export const Editor = {
       }
     }
 
-    // 生成後にモードを解除せず、選択範囲のみリセットして継続
     State.aiSelectionRange = { start: null, end: null };
     this.refreshAiSelectionUI();
-    // フローティングバーの表示内容を更新（履歴を反映させるため再描画）
     this.showAiFloatBar();
 
     UI.showLoadingOverlay("AIに接続しています...");
@@ -337,21 +434,15 @@ export const Editor = {
     try {
       const { AiService } = await import('./ai.js');
       UI.updateLoadingProgress(30, "AIが内容を構成中...");
-
-      // シミュレーション的なプログレス
       const progressTimer = setInterval(() => {
         const currentBar = document.getElementById('ai-progress-bar');
-        if (currentBar) {
-          const currentWidth = parseInt(currentBar.style.width || "0");
-          if (currentWidth < 90) {
-            UI.updateLoadingProgress(currentWidth + 5, currentWidth > 60 ? "文章を清書しています..." : "AIが執筆しています...");
-          }
+        if (currentBar && parseInt(currentBar.style.width || "0") < 90) {
+          UI.updateLoadingProgress(parseInt(currentBar.style.width) + 5, "AIが執筆しています...");
         }
       }, 800);
 
       const result = await AiService.generate(activeModel, selectedText, persona, instruction);
       clearInterval(progressTimer);
-
       UI.updateLoadingProgress(100, "書き込み中...");
 
       const newLines = [
@@ -359,19 +450,16 @@ export const Editor = {
         result,
         ...lines.slice(finalEndLine)
       ];
-
       State.currentTextCache = newLines.join('\n');
       FileOps.renderContent(State.currentTextCache);
     } catch (e) {
       alert("AI生成エラー: " + e.message);
-      console.error(e);
     } finally {
       setTimeout(() => UI.hideLoadingOverlay(), 500);
     }
   },
 
   openRegenModal(block, activeName = '') {
-    // 既存のモーダルがあれば消す
     const existing = document.getElementById('ai-regen-modal');
     if (existing) existing.remove();
 
@@ -379,60 +467,28 @@ export const Editor = {
     wrapper.id = 'ai-regen-modal';
     wrapper.className = 'modal-wrapper';
 
-    // 履歴からリスト項目を作成
     const historyList = (State.settings.aiPersonaHistory || [])
-      .map(name => `
-        <div class="persona-dropdown-item" data-value="${name}">
-          <span class="persona-item-text">${name}</span>
-          <button class="persona-item-delete" title="削除"><i class="fa-solid fa-trash"></i></button>
-        </div>
-      `)
+      .map(name => `<div class="persona-dropdown-item" data-value="${name}"><span class="persona-item-text">${name}</span><button class="persona-item-delete" title="削除"><i class="fa-solid fa-trash"></i></button></div>`)
       .join('');
 
-    // ソースのデフォルトは現在の視点
     const sourceOptions = block.variants.map(v => `<option value="${v.name}" ${v.name === activeName ? 'selected' : ''}>${v.name}</option>`).join('');
-    const modelOptions = (State.settings.aiModels || []).map(m => {
-      const displayName = m.label || m.name || "名称未設定";
-      return `<option value="${m.id}" ${m.active ? 'selected' : ''}>${m.provider}: ${displayName}</option>`;
-    }).join('');
+    const modelOptions = (State.settings.aiModels || []).map(m => `<option value="${m.id}" ${m.active ? 'selected' : ''}>${m.provider}: ${m.label || m.name}</option>`).join('');
 
     wrapper.innerHTML = `
       <div class="modal-box giant-modal" style="height: auto; max-width: 500px;">
-        <div class="modal-header">
-          <h3>別視点の再生成 / 追加</h3>
-          <button class="icon-btn" onclick="document.getElementById('ai-regen-modal').remove()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
+        <div class="modal-header"><h3>別視点の再生成 / 追加</h3><button class="icon-btn" onclick="document.getElementById('ai-regen-modal').remove()"><i class="fa-solid fa-xmark"></i></button></div>
         <div class="regen-form">
-          <div class="regen-field">
-            <label>元の視点 (ソース):</label>
-            <select id="regen-source-select">${sourceOptions}</select>
-          </div>
-          <div class="regen-field">
-            <label>ターゲットの視点名:</label>
-            <div class="persona-input-wrapper">
-              <input type="text" id="regen-persona-input" placeholder="例: 読者の視点, 編集者の視点" value="${activeName || '相手の視点'}">
-              <button id="regen-persona-dropdown-btn" class="persona-dropdown-btn" title="履歴を表示">▼</button>
-              <div id="regen-persona-dropdown-list" class="persona-dropdown-list hidden modal-dropdown">
-                ${historyList || '<div class="persona-dropdown-empty">履歴がありません</div>'}
-              </div>
-            </div>
-          </div>
-          <div class="regen-field">
-            <label>使用するモデル:</label>
-            <select id="regen-model-select">${modelOptions}</select>
-          </div>
-          <div class="regen-field">
-            <label>追加の指示 (方針):</label>
-            <textarea id="regen-instruction-input" placeholder="例: もっと短く、箇条書きで、など"></textarea>
-          </div>
-          <div class="regen-actions">
-            <button class="secondary" onclick="document.getElementById('ai-regen-modal').remove()">キャンセル</button>
-            <button id="regen-exec-btn">生成実行</button>
-          </div>
+          <div class="regen-field"><label>元の視点 (ソース):</label><select id="regen-source-select">${sourceOptions}</select></div>
+          <div class="regen-field"><label>ターゲットの視点名:</label><div class="persona-input-wrapper">
+              <input type="text" id="regen-persona-input" value="${activeName || '相手の視点'}"><button id="regen-persona-dropdown-btn" class="persona-dropdown-btn">▼</button>
+              <div id="regen-persona-dropdown-list" class="persona-dropdown-list hidden modal-dropdown">${historyList || '<div class="persona-dropdown-empty">履歴がありません</div>'}</div>
+          </div></div>
+          <div class="regen-field"><label>使用するモデル:</label><select id="regen-model-select">${modelOptions}</select></div>
+          <div class="regen-field"><label>追加の指示:</label><textarea id="regen-instruction-input"></textarea></div>
+          <div class="regen-actions"><button class="secondary" onclick="document.getElementById('ai-regen-modal').remove()">キャンセル</button><button id="regen-exec-btn">生成実行</button></div>
         </div>
       </div>
     `;
-
     document.body.appendChild(wrapper);
 
     const personaInputElem = document.getElementById('regen-persona-input');
@@ -440,66 +496,33 @@ export const Editor = {
     const dropdownList = document.getElementById('regen-persona-dropdown-list');
 
     if (dropdownBtn && dropdownList && personaInputElem) {
-      dropdownBtn.onclick = (e) => {
-        e.stopPropagation();
-        dropdownList.classList.toggle('hidden');
-      };
-
+      dropdownBtn.onclick = (e) => { e.stopPropagation(); dropdownList.classList.toggle('hidden'); };
       dropdownList.onclick = async (e) => {
         const deleteBtn = e.target.closest('.persona-item-delete');
         if (deleteBtn) {
           e.stopPropagation();
           const item = deleteBtn.closest('.persona-dropdown-item');
           const val = item.getAttribute('data-value');
-
-          if (!State.settings.aiPersonaHistory) State.settings.aiPersonaHistory = [];
-          State.settings.aiPersonaHistory = State.settings.aiPersonaHistory.filter(h => h !== val);
-
-          try {
-            const { saveSettingsToStorage } = await import('./settings.js');
-            saveSettingsToStorage();
-          } catch (err) {
-            console.error("Failed to save settings", err);
-          }
+          State.settings.aiPersonaHistory = (State.settings.aiPersonaHistory || []).filter(h => h !== val);
+          const { saveSettingsToStorage } = await import('./settings.js');
+          saveSettingsToStorage();
           item.remove();
-          if (State.settings.aiPersonaHistory.length === 0) {
-            dropdownList.innerHTML = '<div class="persona-dropdown-empty">履歴がありません</div>';
-          }
           return;
         }
-
         const item = e.target.closest('.persona-dropdown-item');
-        if (item) {
-          personaInputElem.value = item.getAttribute('data-value');
-          dropdownList.classList.add('hidden');
-        }
+        if (item) { personaInputElem.value = item.getAttribute('data-value'); dropdownList.classList.add('hidden'); }
       };
-
-      // モーダル外部や他所をクリックした際も閉じる
-      const onGlobalClick = (e) => {
-        if (!wrapper.contains(e.target)) {
-          dropdownList.classList.add('hidden');
-          document.removeEventListener('click', onGlobalClick);
-        }
-      };
-      document.addEventListener('click', onGlobalClick);
     }
 
     document.getElementById('regen-exec-btn').onclick = () => {
-      const sourceName = document.getElementById('regen-source-select').value;
-      const targetPersona = document.getElementById('regen-persona-input').value.trim() || (activeName || "相手の視点");
-      const modelId = document.getElementById('regen-model-select').value;
-      const instruction = document.getElementById('regen-instruction-input').value.trim();
-
-      const sourceVariant = block.variants.find(v => v.name === sourceName);
+      const sourceVariant = block.variants.find(v => v.name === document.getElementById('regen-source-select').value);
       if (!sourceVariant) return;
-
       this.regeneratePerspective(block, {
         sourceText: sourceVariant.text,
         originalName: activeName,
-        targetPersona,
-        modelId,
-        instruction
+        targetPersona: document.getElementById('regen-persona-input').value.trim(),
+        modelId: document.getElementById('regen-model-select').value,
+        instruction: document.getElementById('regen-instruction-input').value.trim()
       });
       wrapper.remove();
     };
@@ -508,87 +531,38 @@ export const Editor = {
   async regeneratePerspective(block, config) {
     const { sourceText, originalName, targetPersona, modelId, instruction } = config;
     const activeModel = State.settings.aiModels.find(m => m.id === modelId) || State.settings.aiModels.find(m => m.active);
-    if (!activeModel) {
-      alert("選択されたモデルが見つかりません。");
-      return;
-    }
+    if (!activeModel) return;
 
     UI.showLoadingOverlay("AIに接続しています...");
-    UI.updateLoadingProgress(20, `${targetPersona} として再構成中...`);
-
     try {
       const { AiService } = await import('./ai.js');
       const { BlockParser } = await import('./block-parser.js');
       const result = await AiService.generate(activeModel, sourceText, targetPersona, instruction);
-      
       const parsedBlocks = BlockParser.parse(result);
       const switchBlock = parsedBlocks.find(b => b.type === 'switch');
-      
-      if (!switchBlock || !switchBlock.variants) {
-        throw new Error("AIからの応答を正しく解析できませんでした。");
-      }
+      if (!switchBlock) throw new Error("AI結果解析不能");
 
       const targetVariant = switchBlock.variants.find(v => v.name === targetPersona);
-      if (!targetVariant) {
-        throw new Error(`AIからの応答に視点「${targetPersona}」が見つかりませんでした。`);
-      }
+      if (!targetVariant) throw new Error("視点未検出");
 
       const aiContent = targetVariant.text.trim();
-
       const newVariants = [...block.variants];
       const targetIdx = newVariants.findIndex(v => v.name === targetPersona);
       const originalIdx = originalName ? newVariants.findIndex(v => v.name === originalName) : -1;
 
-      if (targetIdx !== -1) {
-        // 同名の視点があれば上書き
-        newVariants[targetIdx] = { ...newVariants[targetIdx], text: aiContent };
-      } else if (originalIdx !== -1) {
-        // 同名はなく、元の視点名が指定されていれば「名前の変更」として扱う
-        newVariants[originalIdx] = { ...newVariants[originalIdx], name: targetPersona, text: aiContent };
-      } else {
-        // どちらでもなければ新規追加
-        newVariants.push({ name: targetPersona, text: aiContent, lineOffset: 0 });
-      }
+      if (targetIdx !== -1) newVariants[targetIdx] = { ...newVariants[targetIdx], text: aiContent };
+      else if (originalIdx !== -1) newVariants[originalIdx] = { ...newVariants[originalIdx], name: targetPersona, text: aiContent };
+      else newVariants.push({ name: targetPersona, text: aiContent, lineOffset: 0 });
 
-      // 最終的な Markdown ブロックを構築
-      let newBlockText = `:::switch\n`;
-      newVariants.forEach(v => {
-        newBlockText += `@${v.name}\n${v.text}\n\n`;
-      });
-      newBlockText = newBlockText.trim() + `\n:::`;
-
-      // 元のテキストの置換
+      let newBlockText = `:::switch\n` + newVariants.map(v => `@${v.name}\n${v.text}`).join('\n\n') + `\n:::`;
       const lines = (State.currentTextCache || "").split(/\r\n|\n/);
-      // block.lineOffset は :::switch の行
-      // 終了行を特定する必要がある。BlockParser.parse を流用するか、手動で判定
       let endLine = block.lineOffset;
-      for (let i = block.lineOffset; i < lines.length; i++) {
-        if (lines[i].trim() === ':::') {
-          endLine = i;
-          break;
-        }
-      }
+      for (let i = block.lineOffset; i < lines.length; i++) if (lines[i].trim() === ':::') { endLine = i; break; }
 
-      const newAllLines = [
-        ...lines.slice(0, block.lineOffset),
-        newBlockText,
-        ...lines.slice(endLine + 1)
-      ];
-
-      State.currentTextCache = newAllLines.join('\n');
+      State.currentTextCache = [...lines.slice(0, block.lineOffset), newBlockText, ...lines.slice(endLine + 1)].join('\n');
       FileOps.renderContent(State.currentTextCache);
-
-      // 成功したら履歴に追加
-      if (!State.settings.aiPersonaHistory.includes(targetPersona)) {
-        State.settings.aiPersonaHistory.unshift(targetPersona);
-        if (State.settings.aiPersonaHistory.length > 10) State.settings.aiPersonaHistory.pop();
-        const { saveSettingsToStorage } = await import('./settings.js');
-        saveSettingsToStorage();
-      }
-
     } catch (e) {
-      alert("再生成エラー: " + e.message);
-      console.error(e);
+      alert("エラー: " + e.message);
     } finally {
       UI.hideLoadingOverlay();
     }

@@ -35,6 +35,13 @@ body.dark-mode {
     --highlight-bg: rgba(255, 255, 255, 0.1);
     --table-border: #555;
     --table-stripe: #252525;
+    color-scheme: dark;
+}
+
+body.dark-mode select,
+body.dark-mode option {
+    background-color: var(--panel-bg);
+    color: var(--text-color);
 }
 
 * {
@@ -178,22 +185,23 @@ body.ai-selection-mode #download-btn {
 /* ==========================================================================
    Search Drawer
    ========================================================================== */
-.search-wrap {
+.search-wrap>#search-toggle-btn {
     position: relative;
+    z-index: 3;
     width: 44px;
     height: 44px;
     flex: 0 0 44px;
 }
 
-.search-wrap>#search-toggle-btn {
-    position: relative;
-    z-index: 3;
+/* 編集モードではボタン自体を隠す（リボンのボタンに集約）*/
+body.editing .search-wrap>#search-toggle-btn {
+    display: none;
 }
 
 #search-bar.search-bar {
-    position: absolute;
-    right: 44px;
-    top: 0;
+    position: fixed;
+    right: 20px;
+    top: 60px;
     height: 44px;
     width: 0;
     padding: 0;
@@ -202,19 +210,75 @@ body.ai-selection-mode #download-btn {
     align-items: center;
     gap: 10px;
     background: var(--panel-bg);
-    border: 1px solid transparent;
+    border: 1px solid var(--header-border);
     border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-    transition: width 220ms ease, padding 220ms ease, border-color 220ms ease;
-    z-index: 4;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    z-index: 2000;
     pointer-events: none;
+    transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
+}
+
+/* 編集モードでも位置は固定 */
+body.editing #search-bar.search-bar {
+    right: 20px;
+    top: 60px;
 }
 
 #search-bar.search-bar.active {
     width: var(--search-drawer-width);
-    padding: 0 10px;
-    border-color: var(--header-border);
+    padding: 0 15px;
+    border-color: var(--accent-color);
     pointer-events: auto;
+}
+
+#search-bar.search-bar.active.has-replace {
+    height: 100px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 10px 15px;
+}
+
+#search-bar.search-bar.active.has-replace > div {
+    width: 100%;
+}
+
+.search-wrap-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.replace-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.replace-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.text-btn.tiny {
+    font-size: 11px;
+    padding: 2px 8px;
+    height: 28px;
+    width: auto;
+    border: 1px solid var(--header-border);
+    background: rgba(0, 0, 0, 0.05);
+    white-space: nowrap;
+}
+
+body.dark-mode .text-btn.tiny {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.text-btn.tiny:hover {
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .search-input-group {
@@ -229,21 +293,25 @@ body.ai-selection-mode #download-btn {
     min-width: 0;
 }
 
-#search-input {
+body.dark-mode .search-input-group {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#search-input, #replace-input {
     border: none;
     background: transparent;
     color: var(--text-color);
-    padding: 6px 4px;
+    padding: 4px;
     width: 100%;
     outline: none;
-    font-size: 16px;
-    /* iPad対策 */
+    font-size: 14px;
     min-width: 0;
 }
 
 .search-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
     font-size: 12px;
     white-space: nowrap;
@@ -268,13 +336,14 @@ body.ai-selection-mode #download-btn {
 }
 
 .search-match {
-    background-color: yellow;
-    color: black;
+    background-color: #ffcc00; /* オレンジ（明るめ） */
+    color: inherit;
+    border-radius: 2px;
 }
 
 .search-match.current {
-    background-color: orange;
-    outline: 2px solid red;
+    background-color: #ff8c00; /* 現在のヒット箇所：やや濃いオレンジ */
+    outline: 1px solid rgba(0,0,0,0.3);
 }
 
 /* ==========================================================================
@@ -385,12 +454,15 @@ body.ai-selection-mode #download-btn {
     overflow: hidden;
     position: relative;
     writing-mode: horizontal-tb !important;
+    display: flex;
+    flex-direction: column;
 }
 
 #content-area {
     padding: 60px 40px;
     overflow-y: auto;
     height: 100%;
+    /* 縦書きモード時のオーバーライドに干渉しないよう注意 */
     font-family: var(--font-family);
     font-size: var(--font-size);
     letter-spacing: var(--letter-spacing);
@@ -1589,6 +1661,294 @@ body.dark-mode .ai-progress-bar-container {
 }
 
 /* Vertical Mode Adjustments for Switch Block */
+/* ==========================================================================
+   Editor Ribbon UI & Unified Layout
+   ========================================================================== */
+
+/* 編集モード時の全体レイアウト調整 */
+body.editing header,
+body.editing #sidebar,
+body.editing #sidebar-overlay {
+    display: none !important;
+}
+
+body.editing #app-body {
+    height: 100vh;
+    top: 0;
+}
+
+body.editing #reader-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg-color);
+}
+
+/* リボンUI コンテナ */
+#ribbon-container {
+    background: var(--header-bg);
+    border-bottom: 2px solid var(--header-border);
+    flex-shrink: 0;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.ribbon-tabs {
+    display: flex;
+    padding: 0 10px;
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--header-border);
+    overflow-x: auto; /* 横スクロール対応 */
+    scrollbar-width: none; /* スクロールバーを隠す (Firefox) */
+}
+
+.ribbon-tabs::-webkit-scrollbar {
+    display: none; /* スクロールバーを隠す (Chrome/Safari) */
+}
+
+body.dark-mode .ribbon-tabs {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ribbon-tab {
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    background: transparent !important; /* 背景の強制排除 */
+    color: var(--text-color);
+    opacity: 0.9; /* 0.7 -> 0.9 視認性を最大化 */
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    outline: none;
+}
+
+.ribbon-tab:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.dark-mode .ribbon-tab:hover {
+    background: rgba(255, 255, 255, 0.15) !important; /* 少し明るく */
+}
+
+.ribbon-tab.active {
+    opacity: 1;
+    color: var(--accent-color) !important;
+    border-bottom-color: var(--accent-color) !important;
+    background: transparent !important;
+}
+
+.ribbon-panels {
+    padding: 5px 10px; /* 10px 15px -> 5px 10px */
+    height: 75px; /* 90px -> 75px */
+    display: flex;
+    align-items: center;
+    overflow-x: auto; /* グループが多い場合にスクロール */
+    overscroll-behavior-x: contain;
+}
+
+.ribbon-panel {
+    display: none;
+    align-items: center;
+    gap: 20px;
+    height: 100%;
+}
+
+.ribbon-panel.active {
+    display: flex;
+}
+
+.ribbon-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 10px; /* 0 15px -> 0 10px */
+    border-right: 1px solid var(--header-border);
+    gap: 2px; /* 5px -> 2px */
+    flex-shrink: 0; /* 圧縮されないようにする */
+}
+
+.ribbon-group:last-child {
+    border-right: none;
+}
+
+.group-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap; /* ラベルの折り返しを防止 */
+}
+
+.btn-cluster {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rbn-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.rbn-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: var(--header-border);
+}
+
+.rbn-btn.active {
+    background: var(--highlight-bg);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.rbn-btn.primary {
+    background: var(--accent-color);
+    color: white;
+    width: auto;
+    padding: 0 15px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.rbn-btn.primary:hover {
+    filter: brightness(1.1);
+}
+
+.divider-v {
+    width: 1px;
+    height: 24px;
+    background: var(--header-border);
+    margin: 0 5px;
+}
+
+/* メインエリア */
+#editor-main-area {
+    flex-grow: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-color);
+}
+
+/* 編集モード時は常に横書き & 全画面 */
+body.editing #edit-textarea {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 40px;
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+    background: var(--bg-color);
+    color: var(--text-color);
+    resize: none;
+    border: none;
+    outline: none;
+    writing-mode: horizontal-tb !important;
+}
+
+/* 以前の preview-display は visual-mode として再定義 */
+body.editing.visual-mode #content-area {
+    display: block;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px;
+    flex: 1;
+    overflow-y: auto;
+    outline: none; /* contenteditable の枠線を消す */
+}
+
+/* ビジュアルモード時のフォント設定（プレビューと同じ） */
+body.editing.visual-mode #content-area {
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+}
+
+body.editing.visual-mode #edit-textarea {
+    display: none;
+}
+
+/* ソースモード（Markdown直接編集） */
+body.editing:not(.visual-mode) #edit-textarea {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 40px;
+    font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+    font-size: 16px; /* ソースコードっぽく少し小さめ */
+    line-height: 1.6;
+    background: var(--bg-color);
+    color: var(--text-color);
+    resize: none;
+    border: none;
+    outline: none;
+    writing-mode: horizontal-tb !important;
+}
+
+body.editing:not(.visual-mode) #content-area {
+    display: none;
+}
+
+/* ステータスバー */
+#editor-status-bar {
+    height: 28px;
+    background: var(--header-bg);
+    border-top: 1px solid var(--header-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 11px;
+    color: #888;
+    flex-shrink: 0;
+}
+
+.status-left, .status-right {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+#save-status.saved {
+    color: var(--edit-mode-color);
+}
+
+#save-status.changed {
+    color: var(--accent-color);
+}
+
+/* 以前のエディタスタイルの整理 */
+#edit-textarea {
+    display: none;
+}
+
+/* 縦書きモード時のオーバーライド：#editor-main-area のクリップを解除 */
+body:not(.editing) #reader-container.vertical #editor-main-area {
+    overflow: visible;
+    display: block;
+}
+
 body:not(.editing) #reader-container.vertical .switch-block {
     writing-mode: horizontal-tb;
     margin: 0 2em;
@@ -1596,3 +1956,44 @@ body:not(.editing) #reader-container.vertical .switch-block {
     max-height: 90%;
     align-self: center;
 }
+
+/* ==========================================================================
+   Download Modal Styles
+   ========================================================================== */
+.download-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.download-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.download-field label {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+#download-filename-input {
+    padding: 10px 12px;
+    border: 1px solid var(--header-border);
+    background: var(--bg-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#download-filename-input:focus {
+    border-color: var(--accent-color);
+}
+
+#download-ext-segment {
+    width: 60%;
+}

@@ -36,6 +36,10 @@ export const D = {
   jumpLineModal: document.getElementById('jump-line-modal'),
   searchBar: document.getElementById('search-bar'),
   searchWrap: document.getElementById('search-wrap'),
+  replaceWrap: document.getElementById('replace-wrap'),
+  replaceInput: document.getElementById('replace-input'),
+  replaceBtn: document.getElementById('replace-btn'),
+  replaceAllBtn: document.getElementById('replace-all-btn'),
 
   // Inputs inside panels
   writingModeSegment: document.getElementById('writing-mode-segment'),
@@ -53,6 +57,44 @@ export const D = {
   searchClose: document.getElementById('search-close'),
   searchCount: document.getElementById('search-count'),
 
+  // High-level main area containers
+  editorMainArea: document.getElementById('editor-main-area'),
+
+  // Ribbon UI
+  ribbonContainer: document.getElementById('ribbon-container'),
+  ribbonTabs: document.querySelectorAll('.ribbon-tab'),
+  ribbonPanels: document.querySelectorAll('.ribbon-panel'),
+
+  // Ribbon Buttons - Home
+  rbnBold: document.getElementById('rbn-bold'),
+  rbnItalic: document.getElementById('rbn-italic'),
+  rbnStrike: document.getElementById('rbn-strike'),
+  rbnH1: document.getElementById('rbn-h1'),
+  rbnH2: document.getElementById('rbn-h2'),
+  rbnH3: document.getElementById('rbn-h3'),
+  rbnList: document.getElementById('rbn-list'),
+  rbnQuote: document.getElementById('rbn-quote'),
+  rbnSearch: document.getElementById('rbn-search'),
+
+  // Ribbon Buttons - Insert
+  rbnLink: document.getElementById('rbn-link'),
+  rbnImage: document.getElementById('rbn-image'),
+  rbnTable: document.getElementById('rbn-table'),
+  rbnAiSwitch: document.getElementById('rbn-switch'),
+  rbnHr: document.getElementById('rbn-hr'),
+
+  // Ribbon Buttons - View
+  rbnViewEdit: document.getElementById('rbn-view-edit'),
+  rbnViewPreview: document.getElementById('rbn-view-preview'),
+  rbnDownload: document.getElementById('rbn-download'),
+  rbnSaveClose: document.getElementById('rbn-save-close'),
+
+  // Status Bar
+  editorStatusBar: document.getElementById('editor-status-bar'),
+  charCount: document.getElementById('char-count'),
+  lineCount: document.getElementById('line-count'),
+  saveStatus: document.getElementById('save-status'),
+
   // TOC Settings controls (now in tabs)
   ruleListContainer: document.getElementById('rule-list-container'),
   addRuleBtn: document.getElementById('add-rule-btn'),
@@ -69,4 +111,11 @@ export const D = {
   jumpLineExec: document.getElementById('jump-line-exec'),
   jumpLineClose: document.getElementById('jump-line-close'),
   maxLineDisplay: document.getElementById('max-line-display'),
+  
+  // Download Modal
+  downloadModal: document.getElementById('download-modal'),
+  downloadFilenameInput: document.getElementById('download-filename-input'),
+  downloadExtSegment: document.getElementById('download-ext-segment'),
+  downloadConfirmBtn: document.getElementById('download-confirm-btn'),
+  downloadCancelBtn: document.getElementById('download-cancel-btn'),
 };

@@ -60,14 +60,18 @@ const App = {
       Editor.toggleAiSelectionMode();
     });
 
-    D.downloadBtn.addEventListener('click', () => Editor.downloadFile());
+    D.downloadBtn.addEventListener('click', () => Editor.openDownloadModal());
 
     // ★クリック外し：検索ドロワー
     document.addEventListener('click', (e) => {
       // search drawer
-      if (D.searchBar.classList.contains('active')) {
-        const inSearch = D.searchWrap.contains(e.target);
-        if (!inSearch) Search.close();
+      if (D.searchBar?.classList.contains('active')) {
+        const inSearch = D.searchBar.contains(e.target);
+        const inWrap = D.searchWrap?.contains(e.target);
+        // リボンボタン経由でのクリックも除外する必要がある
+        const isRibbonSearch = D.rbnSearch && D.rbnSearch.contains(e.target);
+        const isToggleBtn = D.searchToggleBtn && D.searchToggleBtn.contains(e.target);
+        if (!inSearch && !inWrap && !isRibbonSearch && !isToggleBtn) Search.close();
       }
     });
 
@@ -79,10 +83,10 @@ const App = {
     D.jumpLineInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') Editor.jumpToLine(); });
 
     // Search Controls
-    D.searchToggleBtn.addEventListener('click', () => Search.toggle());
-    D.searchClose.addEventListener('click', () => Search.close());
+    D.searchToggleBtn?.addEventListener('click', () => Search.toggle());
+    D.searchClose?.addEventListener('click', () => Search.close());
 
-    D.regexToggle.addEventListener('click', () => {
+    D.regexToggle?.addEventListener('click', () => {
       State.isRegexMode = !State.isRegexMode;
       D.regexToggle.classList.toggle('active', State.isRegexMode);
       if (D.searchInput.value) Search.perform();
@@ -101,6 +105,12 @@ const App = {
     D.searchPrev.addEventListener('click', () => {
       if (State.searchMatches.length === 0) Search.perform();
       else Search.navigate(-1);
+    });
+
+    D.replaceBtn.addEventListener('click', () => Search.replace());
+    D.replaceAllBtn.addEventListener('click', () => Search.replaceAll());
+    D.replaceInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); Search.replace(); }
     });
 
     // Settings Modal Content
@@ -134,6 +144,13 @@ const App = {
       Settings.closeModal();
     });
 
+    // Download Modal Actions
+    D.downloadConfirmBtn.addEventListener('click', () => Editor.confirmDownload());
+    D.downloadCancelBtn.addEventListener('click', () => D.downloadModal.classList.add('hidden'));
+    D.downloadFilenameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') Editor.confirmDownload();
+    });
+
     // TOC Tab specific
     D.tocSettingsBtn.addEventListener('click', () => {
       Settings.openModal('tab-toc');
@@ -156,12 +173,73 @@ const App = {
       row.querySelector('input[type="text"]').focus();
     });
 
+    // リボンUI タブ切り替え
+    D.ribbonTabs.forEach(tab => {
+      tab.addEventListener('click', () => Editor.switchRibbonTab(tab.dataset.tab));
+    });
+
+    // リボンUI ボタン（ホーム）
+    D.rbnBold.addEventListener('click', () => Editor.insertMarkdown('bold'));
+    D.rbnItalic.addEventListener('click', () => Editor.insertMarkdown('italic'));
+    D.rbnStrike.addEventListener('click', () => Editor.insertMarkdown('strike'));
+    D.rbnH1.addEventListener('click', () => Editor.insertMarkdown('h1'));
+    D.rbnH2.addEventListener('click', () => Editor.insertMarkdown('h2'));
+    D.rbnH3.addEventListener('click', () => Editor.insertMarkdown('h3'));
+    D.rbnList.addEventListener('click', () => Editor.insertMarkdown('list'));
+    D.rbnQuote.addEventListener('click', () => Editor.insertMarkdown('quote'));
+    D.rbnSearch.addEventListener('click', () => Search.toggle());
+
+    // リボンUI ボタン（挿入）
+    D.rbnLink.addEventListener('click', () => Editor.insertMarkdown('link'));
+    D.rbnImage.addEventListener('click', () => Editor.insertMarkdown('image'));
+    D.rbnTable.addEventListener('click', () => Editor.insertMarkdown('table'));
+    D.rbnAiSwitch.addEventListener('click', () => Editor.insertMarkdown('ai-switch'));
+    D.rbnHr.addEventListener('click', () => Editor.insertMarkdown('hr'));
+
+    // リボンUI ボタン（表示）
+    D.rbnViewEdit.addEventListener('click', () => Editor.setViewMode('edit'));
+    D.rbnViewPreview.onclick = () => Editor.setViewMode('preview');
+    D.rbnDownload.onclick = () => Editor.openDownloadModal();
+    D.rbnSaveClose.onclick = () => Editor.toggleMode(); // 終了
+
+    // エディタ入力監視（文字数カウント・プレビュー更新準備）
+    D.editTextarea.addEventListener('input', () => {
+      Editor.updateStatusBar();
+      if (D.body.classList.contains('preview-display')) {
+        Editor.refreshPreview();
+      }
+    });
+
     // ESC 全体：モーダル閉じる/検索閉じる
     document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
-      Search.close();
-      Settings.closeModal();
-      D.jumpLineModal.classList.add('hidden');
+      if (e.key === 'Escape') {
+        Search.close();
+        Settings.closeModal();
+        D.jumpLineModal.classList.add('hidden');
+        D.downloadModal.classList.add('hidden');
+      }
+      // Ctrl+E で編集/プレビュー切り替え
+      if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        if (State.isEditMode) {
+          const next = D.body.classList.contains('preview-display') ? 'edit' : 'preview';
+          Editor.setViewMode(next);
+        } else {
+          Editor.toggleMode(); // 編集モード開始
+        }
+      }
+      // Ctrl+F で検索ドロワー
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        if (!D.searchBar.classList.contains('active')) Search.toggle();
+        else D.searchInput.focus();
+      }
+      // Ctrl+B, Ctrl+I 等のショートカットは Editor.initShortcuts で一括管理も可能だが、
+      // ここで簡単にハンドルする
+      if (State.isEditMode && e.ctrlKey) {
+        if (e.key === 'b') { e.preventDefault(); Editor.insertMarkdown('bold'); }
+        if (e.key === 'i') { e.preventDefault(); Editor.insertMarkdown('italic'); }
+      }
     });
   }
 };
